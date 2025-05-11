@@ -1,14 +1,3 @@
-#!/usr/bin/env python
-"""
-train.py  ·  Unmix‑CLIP (re‑implementation)
------------------------------------------
-• 2025‑05‑11  — Modified to match paper (“Disentangling CLIP Features …”) settings
-  - Input size 448×448 (was 224×224)
-  - CLIP mean/std manually applied (clip_preprocess removed)
-  - Visual / text encoders frozen; only projectors updated
-  - Minor hygiene: resume flag, deterministic seed helper
-"""
-
 import os, glob, json, argparse, logging, time
 from typing import Tuple
 
@@ -55,7 +44,6 @@ CLIP_STD:  Tuple[float, float, float] = (0.26862954, 0.26130258, 0.27577711)
 # ─────────────────────────────────────────────────────────────
 @torch.no_grad()
 def calc_map(pred: np.ndarray, target: np.ndarray) -> float:
-    """Class‑wise AP → mean"""
     aps = []
     for k in range(target.shape[1]):
         if target[:, k].sum() == 0:
@@ -258,7 +246,7 @@ def get_cfg():
     p.add_argument("--run_name",   default="unmix‑clip‑448")
 
     # training hyper‑params ----------------------------------
-    p.add_argument("--batch",   type=int,   default=16)  # 448 px → half the 224 batch
+    p.add_argument("--batch",   type=int,   default=16) 
     p.add_argument("--workers", type=int,   default=4)
     p.add_argument("--epochs",  type=int,   default=50)
     p.add_argument("--lr",      type=float, default=0.002)
@@ -269,9 +257,6 @@ def get_cfg():
 
     return p.parse_args()
 
-# ─────────────────────────────────────────────────────────────
-# Entry point
-# ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     cfg = get_cfg()
     main(cfg)
@@ -280,7 +265,7 @@ if __name__ == "__main__":
 터미널 프롬프트 예시
 ---------
 python train.py \
-  --data_root data/coco2014 \
+  --data_root data/train2014 \
   --train_ann data/annotations/instances_train2014.json \
   --val_ann   data/annotations/instances_val2014.json \
   --out runs/unmix_clip \

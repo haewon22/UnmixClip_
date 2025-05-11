@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ─────────────────────────────────────────────────────────────
-# ★ MFILoss : 배치 차원 없이 (2N, D) 입력   ← (저자 Q3)
+# MFILoss : 배치 차원 없이 (2N, D) 입력
 # ─────────────────────────────────────────────────────────────
 class MFILoss(nn.Module):
     def __init__(self, lambda_=0.2):
@@ -22,7 +22,7 @@ class MFILoss(nn.Module):
 
 
 # ─────────────────────────────────────────────────────────────
-# AsymmetricLoss - DualCoOp 스타일 (reduction='mean') ★
+# AsymmetricLoss - DualCoOp 스타일 (reduction='mean') 
 # ─────────────────────────────────────────────────────────────
 class AsymmetricLoss(nn.Module):
     def __init__(self, gamma_neg=2.0, gamma_pos=1.0, clip=0.05, eps=1e-8):
@@ -36,9 +36,9 @@ class AsymmetricLoss(nn.Module):
         """
         # 확률
         p_pos = torch.sigmoid(logit_pos)          # + 프롬프트
-        p_neg = torch.sigmoid(logit_neg)          # − 프롬프트 (1-p_pos 아님!)
+        p_neg = torch.sigmoid(logit_neg)          # − 프롬프트
 
-        # asymmetric clipping (논문 δ=0.05)
+        # asymmetric clipping (δ=0.05)
         if self.clip > 0:
             p_neg = (p_neg + self.clip).clamp(max=1)
 
@@ -52,4 +52,4 @@ class AsymmetricLoss(nn.Module):
         gamma = self.g_pos * target + self.g_neg * (1 - target)
         loss *= (1 - pt).pow(gamma)
 
-        return -loss.mean()   # ★ batch mean (저자 Q5)
+        return -loss.mean()   # batch mean
