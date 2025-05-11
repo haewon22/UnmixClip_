@@ -1,0 +1,5 @@
+/data
+/wandb
+/clip_weights
+__pycache__/
+.DS_Store

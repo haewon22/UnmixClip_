@@ -1,0 +1,322 @@
+{
+  "person": {
+    "positive": "A photo of a person.",
+    "negative": "A photo without a person."
+  },
+  "bicycle": {
+    "positive": "A photo of a bicycle.",
+    "negative": "A photo without a bicycle."
+  },
+  "car": {
+    "positive": "A photo of a car.",
+    "negative": "A photo without a car."
+  },
+  "motorcycle": {
+    "positive": "A photo of a motorcycle.",
+    "negative": "A photo without a motorcycle."
+  },
+  "airplane": {
+    "positive": "A photo of a airplane.",
+    "negative": "A photo without a airplane."
+  },
+  "bus": {
+    "positive": "A photo of a bus.",
+    "negative": "A photo without a bus."
+  },
+  "train": {
+    "positive": "A photo of a train.",
+    "negative": "A photo without a train."
+  },
+  "truck": {
+    "positive": "A photo of a truck.",
+    "negative": "A photo without a truck."
+  },
+  "boat": {
+    "positive": "A photo of a boat.",
+    "negative": "A photo without a boat."
+  },
+  "traffic light": {
+    "positive": "A photo of a traffic light.",
+    "negative": "A photo without a traffic light."
+  },
+  "fire hydrant": {
+    "positive": "A photo of a fire hydrant.",
+    "negative": "A photo without a fire hydrant."
+  },
+  "stop sign": {
+    "positive": "A photo of a stop sign.",
+    "negative": "A photo without a stop sign."
+  },
+  "parking meter": {
+    "positive": "A photo of a parking meter.",
+    "negative": "A photo without a parking meter."
+  },
+  "bench": {
+    "positive": "A photo of a bench.",
+    "negative": "A photo without a bench."
+  },
+  "bird": {
+    "positive": "A photo of a bird.",
+    "negative": "A photo without a bird."
+  },
+  "cat": {
+    "positive": "A photo of a cat.",
+    "negative": "A photo without a cat."
+  },
+  "dog": {
+    "positive": "A photo of a dog.",
+    "negative": "A photo without a dog."
+  },
+  "horse": {
+    "positive": "A photo of a horse.",
+    "negative": "A photo without a horse."
+  },
+  "sheep": {
+    "positive": "A photo of a sheep.",
+    "negative": "A photo without a sheep."
+  },
+  "cow": {
+    "positive": "A photo of a cow.",
+    "negative": "A photo without a cow."
+  },
+  "elephant": {
+    "positive": "A photo of a elephant.",
+    "negative": "A photo without a elephant."
+  },
+  "bear": {
+    "positive": "A photo of a bear.",
+    "negative": "A photo without a bear."
+  },
+  "zebra": {
+    "positive": "A photo of a zebra.",
+    "negative": "A photo without a zebra."
+  },
+  "giraffe": {
+    "positive": "A photo of a giraffe.",
+    "negative": "A photo without a giraffe."
+  },
+  "backpack": {
+    "positive": "A photo of a backpack.",
+    "negative": "A photo without a backpack."
+  },
+  "umbrella": {
+    "positive": "A photo of a umbrella.",
+    "negative": "A photo without a umbrella."
+  },
+  "handbag": {
+    "positive": "A photo of a handbag.",
+    "negative": "A photo without a handbag."
+  },
+  "tie": {
+    "positive": "A photo of a tie.",
+    "negative": "A photo without a tie."
+  },
+  "suitcase": {
+    "positive": "A photo of a suitcase.",
+    "negative": "A photo without a suitcase."
+  },
+  "frisbee": {
+    "positive": "A photo of a frisbee.",
+    "negative": "A photo without a frisbee."
+  },
+  "skis": {
+    "positive": "A photo of a skis.",
+    "negative": "A photo without a skis."
+  },
+  "snowboard": {
+    "positive": "A photo of a snowboard.",
+    "negative": "A photo without a snowboard."
+  },
+  "sports ball": {
+    "positive": "A photo of a sports ball.",
+    "negative": "A photo without a sports ball."
+  },
+  "kite": {
+    "positive": "A photo of a kite.",
+    "negative": "A photo without a kite."
+  },
+  "baseball bat": {
+    "positive": "A photo of a baseball bat.",
+    "negative": "A photo without a baseball bat."
+  },
+  "baseball glove": {
+    "positive": "A photo of a baseball glove.",
+    "negative": "A photo without a baseball glove."
+  },
+  "skateboard": {
+    "positive": "A photo of a skateboard.",
+    "negative": "A photo without a skateboard."
+  },
+  "surfboard": {
+    "positive": "A photo of a surfboard.",
+    "negative": "A photo without a surfboard."
+  },
+  "tennis racket": {
+    "positive": "A photo of a tennis racket.",
+    "negative": "A photo without a tennis racket."
+  },
+  "bottle": {
+    "positive": "A photo of a bottle.",
+    "negative": "A photo without a bottle."
+  },
+  "wine glass": {
+    "positive": "A photo of a wine glass.",
+    "negative": "A photo without a wine glass."
+  },
+  "cup": {
+    "positive": "A photo of a cup.",
+    "negative": "A photo without a cup."
+  },
+  "fork": {
+    "positive": "A photo of a fork.",
+    "negative": "A photo without a fork."
+  },
+  "knife": {
+    "positive": "A photo of a knife.",
+    "negative": "A photo without a knife."
+  },
+  "spoon": {
+    "positive": "A photo of a spoon.",
+    "negative": "A photo without a spoon."
+  },
+  "bowl": {
+    "positive": "A photo of a bowl.",
+    "negative": "A photo without a bowl."
+  },
+  "banana": {
+    "positive": "A photo of a banana.",
+    "negative": "A photo without a banana."
+  },
+  "apple": {
+    "positive": "A photo of a apple.",
+    "negative": "A photo without a apple."
+  },
+  "sandwich": {
+    "positive": "A photo of a sandwich.",
+    "negative": "A photo without a sandwich."
+  },
+  "orange": {
+    "positive": "A photo of a orange.",
+    "negative": "A photo without a orange."
+  },
+  "broccoli": {
+    "positive": "A photo of a broccoli.",
+    "negative": "A photo without a broccoli."
+  },
+  "carrot": {
+    "positive": "A photo of a carrot.",
+    "negative": "A photo without a carrot."
+  },
+  "hot dog": {
+    "positive": "A photo of a hot dog.",
+    "negative": "A photo without a hot dog."
+  },
+  "pizza": {
+    "positive": "A photo of a pizza.",
+    "negative": "A photo without a pizza."
+  },
+  "donut": {
+    "positive": "A photo of a donut.",
+    "negative": "A photo without a donut."
+  },
+  "cake": {
+    "positive": "A photo of a cake.",
+    "negative": "A photo without a cake."
+  },
+  "chair": {
+    "positive": "A photo of a chair.",
+    "negative": "A photo without a chair."
+  },
+  "couch": {
+    "positive": "A photo of a couch.",
+    "negative": "A photo without a couch."
+  },
+  "potted plant": {
+    "positive": "A photo of a potted plant.",
+    "negative": "A photo without a potted plant."
+  },
+  "bed": {
+    "positive": "A photo of a bed.",
+    "negative": "A photo without a bed."
+  },
+  "dining table": {
+    "positive": "A photo of a dining table.",
+    "negative": "A photo without a dining table."
+  },
+  "toilet": {
+    "positive": "A photo of a toilet.",
+    "negative": "A photo without a toilet."
+  },
+  "tv": {
+    "positive": "A photo of a tv.",
+    "negative": "A photo without a tv."
+  },
+  "laptop": {
+    "positive": "A photo of a laptop.",
+    "negative": "A photo without a laptop."
+  },
+  "mouse": {
+    "positive": "A photo of a mouse.",
+    "negative": "A photo without a mouse."
+  },
+  "remote": {
+    "positive": "A photo of a remote.",
+    "negative": "A photo without a remote."
+  },
+  "keyboard": {
+    "positive": "A photo of a keyboard.",
+    "negative": "A photo without a keyboard."
+  },
+  "cell phone": {
+    "positive": "A photo of a cell phone.",
+    "negative": "A photo without a cell phone."
+  },
+  "microwave": {
+    "positive": "A photo of a microwave.",
+    "negative": "A photo without a microwave."
+  },
+  "oven": {
+    "positive": "A photo of a oven.",
+    "negative": "A photo without a oven."
+  },
+  "toaster": {
+    "positive": "A photo of a toaster.",
+    "negative": "A photo without a toaster."
+  },
+  "sink": {
+    "positive": "A photo of a sink.",
+    "negative": "A photo without a sink."
+  },
+  "refrigerator": {
+    "positive": "A photo of a refrigerator.",
+    "negative": "A photo without a refrigerator."
+  },
+  "book": {
+    "positive": "A photo of a book.",
+    "negative": "A photo without a book."
+  },
+  "clock": {
+    "positive": "A photo of a clock.",
+    "negative": "A photo without a clock."
+  },
+  "vase": {
+    "positive": "A photo of a vase.",
+    "negative": "A photo without a vase."
+  },
+  "scissors": {
+    "positive": "A photo of a scissors.",
+    "negative": "A photo without a scissors."
+  },
+  "teddy bear": {
+    "positive": "A photo of a teddy bear.",
+    "negative": "A photo without a teddy bear."
+  },
+  "hair drier": {
+    "positive": "A photo of a hair drier.",
+    "negative": "A photo without a hair drier."
+  },
+  "toothbrush": {
+    "positive": "A photo of a toothbrush.",
+    "negative": "A photo without a toothbrush."
+  }
+}
