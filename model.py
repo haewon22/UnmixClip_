@@ -1,114 +1,63 @@
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-# ──────────────────────────────────────────────────────────────
-# 1) 텍스트용: MLPProjector (512 → 384 → 256)
-# ──────────────────────────────────────────────────────────────
-class MLPProjector(nn.Module):
-    def __init__(self, input_dim=512, hidden_dims=(384,), output_dim=256):
-        super().__init__()
-        dims = [input_dim] + list(hidden_dims) + [output_dim]
-        layers = []
-        for i in range(len(dims) - 1):
-            layers.append(nn.Linear(dims[i], dims[i + 1], bias=False))
-            if i < len(dims) - 2:
-                layers.extend([nn.BatchNorm1d(dims[i + 1]), nn.ReLU(inplace=True)])
-        self.net = nn.Sequential(*layers)
-
-    def forward(self, x):
-        return self.net(x)
-
-
-# ──────────────────────────────────────────────────────────────
-# 2) 이미지용: LinearProjector (512 → 256)
-# ──────────────────────────────────────────────────────────────
-class LinearProjector(nn.Linear):
-    def __init__(self, input_dim=512, output_dim=256):
-        super().__init__(input_dim, output_dim, bias=False)
-
-
-# ──────────────────────────────────────────────────────────────
-# 3) Unmix-CLIP: 전체 모델
-# ──────────────────────────────────────────────────────────────
 class UnmixCLIP(nn.Module):
-    def __init__(self, clip_model, image_projector, text_projector):
-        super().__init__()
-        self.clip = clip_model.visual              # ResNet-101 Encoder
-        self.clip_text = clip_model.encode_text    # Text Encoder
-        self.image_projector = image_projector     # Linear: 512→256
-        self.text_projector = text_projector       # MLP:    512→384→256
-
-        for p in self.clip.parameters():
-            p.requires_grad = False
-
-    # ──────────────────────────────────────────────────────────
-    # 3.1) CLIP 이미지 인코더에서 패치 벡터 (49개) 추출
-    # ──────────────────────────────────────────────────────────
+    ...
+    # ──────────────────────────────────────────────────────
+    # 3.1) 패치 추출 (입력 해상도에 따라 자동으로 7×7 또는 14×14)
+    # ──────────────────────────────────────────────────────
     def _forward_image_patches(self, images):
         """
-        Input:  images [B, 3, 224, 224]
-        Output: patch_embeds [B, 49, 512]
+        images:  [B, 3, H, W]  (224 또는 448 권장)
+        224×224 → attnpool 출력   : CLS + 7×7 = 50 토큰
+        448×448 → attnpool 출력   : CLS + 14×14 = 197 토큰
+        return  : patch_tokens   : [B, HW, 512]
+                                   49  (224)  또는 196 (448)
         """
         x = self.clip.conv1(images)
-        x = self.clip.bn1(x)
-        x = self.clip.relu1(x)
-        x = self.clip.conv2(x)
-        x = self.clip.bn2(x)
-        x = self.clip.relu2(x)
-        x = self.clip.conv3(x)
-        x = self.clip.bn3(x)
-        x = self.clip.relu3(x)
+        x = self.clip.bn1(x);  x = self.clip.relu1(x)
+        x = self.clip.conv2(x); x = self.clip.bn2(x); x = self.clip.relu2(x)
+        x = self.clip.conv3(x); x = self.clip.bn3(x); x = self.clip.relu3(x)
 
         x = self.clip.avgpool(x)
-        x = self.clip.layer1(x)
-        x = self.clip.layer2(x)
-        x = self.clip.layer3(x)
-        x = self.clip.layer4(x)           # [B, 2048, 7, 7]
+        x = self.clip.layer1(x); x = self.clip.layer2(x)
+        x = self.clip.layer3(x); x = self.clip.layer4(x)   # [B, 2048, H/32, W/32]
 
-        x = self.clip.attnpool(x)         # [B, 50, 512]  → CLS + 49
-        patch_tokens = x[:, 1:, :]        # [B, 49, 512]
+        x = self.clip.attnpool(x)          # [B, 1+HW, 512]
+        patch_tokens = x[:, 1:, :]         # CLS 제외 ⇒ [B, HW, 512]
+        # 예) 224px → (B, 49, 512) , 448px → (B, 196, 512)
+        # 448×448 / 32 = 14×14
         return patch_tokens
-
-    # ──────────────────────────────────────────────────────────
-    # 3.2) 모델 forward(images, text_tokens)
-    # ──────────────────────────────────────────────────────────
+    ...
     def forward(self, images, text_tokens):
         """
-        images      : [B, 3, 224, 224]
-        text_tokens : [2N, 77] (tokenized text prompts)
-        Returns
-        -------
-        logits_pos, logits_neg : [B, N] × 2
-        txt_proj               : [2N, 256] (for MFI loss)
+        images      : [B, 3, H, W]  (H=W=224 또는 448)
+        text_tokens : [2N, 77]
+        returns
+        --------
+        logits_pos  : [B, N]
+        logits_neg  : [B, N]
+        txt_proj    : [2N, 256] (MFI 용)
         """
         # ① 이미지 인코딩
         with torch.no_grad():
-            patches = self._forward_image_patches(images)  # [B, 49, 512]
-        img_proj = self.image_projector(patches)           # [B, 49, 256]
+            patches = self._forward_image_patches(images)   # [B, HW, 512]
+        img_proj = self.image_projector(patches)            # [B, HW, 256]
         img_proj = F.normalize(img_proj, dim=-1)
 
-        # ② 텍스트 인코딩 (고정)
+        # ② 텍스트 인코딩
         with torch.no_grad():
-            txt_feat = self.clip_text(text_tokens)         # [2N, 512]
-        txt_proj = self.text_projector(txt_feat)           # [2N, 256]
+            txt_feat = self.clip_text(text_tokens)          # [2N, 512]
+        txt_proj = self.text_projector(txt_feat)            # [2N, 256]
         txt_proj = F.normalize(txt_proj, dim=-1)
 
-        # ③ Conv1d로 cosine 유사도 계산: [B, 2N, 49]
-        O = 20 * F.conv1d(
-            img_proj.transpose(1, 2),      # [B, 256, 49]
-            txt_proj[:, :, None]           # [2N, 256, 1]
-        )                                  # [B, 2N, 49]
+        # ③ 패치×텍스트 유사도 : conv1d
+        # img_proj^T : [B, 256, HW]  ──> HW = 49 또는 196
+        O = 20 * F.conv1d(img_proj.transpose(1, 2),
+                          txt_proj[:, :, None])             # [B, 2N, HW]
 
-        # ④ soft-weighted sum (DualCoOp 방식)
-        W = F.softmax(O, dim=-1)           # [B, 2N, 49]
-        logits = 5 * (W * O).sum(-1)       # [B, 2N]
+        W = F.softmax(O, dim=-1)                            # [B, 2N, HW]
+        logits = 5 * (O * W).sum(-1)                        # [B, 2N]
 
-        # ⑤ 양/음 분리 (dual prompt)
-        B, _2N = logits.size()
+        # ④ dual prompt 분리
+        B, _2N = logits.shape
         N = _2N // 2
-        logits = logits.view(B, 2, N)      # [B, 2, N]
-        logits_pos = logits[:, 0]          # [B, N]
-        logits_neg = logits[:, 1]          # [B, N]
-
-        return logits_pos, logits_neg, txt_proj
+        logits = logits.view(B, 2, N)                       # [B, 2, N]
+        return logits[:, 0], logits[:, 1], txt_proj          # pos, neg, txt_proj
