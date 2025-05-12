@@ -69,10 +69,6 @@ class UnmixCLIP(nn.Module):
         x = self.clip.layer3(x)
         x = self.clip.layer4(x)           # [B, 2048, 7, 7]
 
-        # # x = self.clip.attnpool(x)         # [B, 50, 512]  → CLS + 49
-        # patch_tokens = x[:, 1:, :]        # [B, 49, 512]
-        # print("👉 patch_tokens.shape: ", patch_tokens.shape) # 👉 patch_tokens.shape:  torch.Size([16, 196, 512])
-        # return patch_tokens
         x = x.flatten(2).transpose(1, 2)
 
         x = x @ self.patch_proj_w.T        # or F.linear(x, self.patch_proj_w)
