@@ -130,8 +130,9 @@ def main(cfg):
         transforms.Normalize(CLIP_MEAN, CLIP_STD),
     ])
 
-    train_set = Coco14Dataset(cfg.data_root, cfg.train_ann, train_tf)
-    val_set   = Coco14Dataset(cfg.data_root, cfg.val_ann,   val_tf)
+    train_set = Coco14Dataset(os.path.join(cfg.data_root, "train2014"), cfg.train_ann, train_tf)
+    val_set   = Coco14Dataset(os.path.join(cfg.data_root, "val2014"),   cfg.val_ann,   val_tf)
+
 
     train_loader = DataLoader(
         train_set, batch_size=cfg.batch, shuffle=True,
@@ -265,9 +266,10 @@ if __name__ == "__main__":
 터미널 프롬프트 예시
 ---------
 python train.py \
-  --data_root data/train2014 \
+  --data_root data/ \
   --train_ann data/annotations/instances_train2014.json \
   --val_ann   data/annotations/instances_val2014.json \
   --out runs/unmix_clip \
-  --batch 16 --log_int 50
+  --batch 100 --log_int 50 \
+  --epochs 100
 """

@@ -67,14 +67,14 @@ class UnmixCLIP(nn.Module):
         x = self.clip.layer1(x)
         x = self.clip.layer2(x)
         x = self.clip.layer3(x)
-        x = self.clip.layer4(x)           # [B, 2048, 7, 7]
+        x = self.clip.layer4(x)           # [B, 2048, 14, 14]
 
-        x = x.flatten(2).transpose(1, 2)
+        x = x.flatten(2).transpose(1, 2)  # (B, 196, 2048)
 
         x = x @ self.patch_proj_w.T        # or F.linear(x, self.patch_proj_w)
         # print("👉", x.shape)  # torch.Size([16, 196, 512])
 
-        return x    
+        return x
 
     # ──────────────────────────────────────────────────────────
     # 3.2) 모델 forward(images, text_tokens)
