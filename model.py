@@ -39,6 +39,9 @@ class UnmixCLIP(nn.Module):
         self.image_projector = image_projector     # Linear: 512→256
         self.text_projector = text_projector       # MLP:    512→384→256
 
+        self.patch_proj_w = clip_model.visual.attnpool.c_proj.weight  # [512, 2048]
+        self.patch_proj_w.requires_grad_(False)              # freeze
+
         for p in self.clip.parameters():
             p.requires_grad = False
 
@@ -66,10 +69,16 @@ class UnmixCLIP(nn.Module):
         x = self.clip.layer3(x)
         x = self.clip.layer4(x)           # [B, 2048, 7, 7]
 
-        x = self.clip.attnpool(x)         # [B, 50, 512]  → CLS + 49
-        patch_tokens = x[:, 1:, :]        # [B, 49, 512]
-        print("👉 patch_tokens.shape: ", patch_tokens.shape) # 👉 patch_tokens.shape:  torch.Size([16, 196, 512])
-        return patch_tokens
+        # # x = self.clip.attnpool(x)         # [B, 50, 512]  → CLS + 49
+        # patch_tokens = x[:, 1:, :]        # [B, 49, 512]
+        # print("👉 patch_tokens.shape: ", patch_tokens.shape) # 👉 patch_tokens.shape:  torch.Size([16, 196, 512])
+        # return patch_tokens
+        x = x.flatten(2).transpose(1, 2)
+
+        x = x @ self.patch_proj_w.T        # or F.linear(x, self.patch_proj_w)
+        # print("👉", x.shape)  # torch.Size([16, 196, 512])
+
+        return x    
 
     # ──────────────────────────────────────────────────────────
     # 3.2) 모델 forward(images, text_tokens)
