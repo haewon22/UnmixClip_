@@ -40,7 +40,7 @@ class UnmixCLIP(nn.Module):
         self.text_projector = text_projector       # MLP:    512→384→256
 
         self.patch_proj_w = clip_model.visual.attnpool.c_proj.weight  # [512, 2048]
-        self.patch_proj_w.requires_grad_(False)              # freeze
+        self.patch_proj_w.requires_grad_(False)                       # freeze
 
         for p in self.clip.parameters():
             p.requires_grad = False

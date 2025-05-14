@@ -1,5 +1,6 @@
 /data
 /wandb
 /clip_weights
+/mytest.ipynb
 __pycache__/
 .DS_Store
