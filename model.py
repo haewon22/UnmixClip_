@@ -55,7 +55,11 @@ class UnmixCLIP(nn.Module):
         self.image_projector = image_projector     # Linear: 512→256
         self.text_projector = text_projector       # MLP:    512→384→256
         self.patch_proj_w = clip_model.visual.attnpool.c_proj.weight  # [512, 2048]
+        self.patch_proj_w_bias = clip_model.visual.attnpool.c_proj.bias
         self.patch_proj_w.requires_grad_(False)   
+        self.patch_proj_v = clip_model.visual.attnpool.v_proj.weight
+        self.patch_proj_v_bias = clip_model.visual.attnpool.v_proj.bias
+        self.patch_proj_v.requires_grad_(False)
 
         for p in self.clip.parameters():
             p.requires_grad = False
@@ -85,9 +89,10 @@ class UnmixCLIP(nn.Module):
         x = self.clip.layer4(x)           # [B, 2048, 14, 14]
 
         x = x.flatten(2).transpose(1, 2)  # (B, 196, 2048)
+        # x = x @ self.patch_proj_v.T + self.patch_proj_v_bias
+        # x = x @ self.patch_proj_w.T + self.patch_proj_w_bias
 
         x = x @ self.patch_proj_w.T        # or F.linear(x, self.patch_proj_w)
-
         return x
 
     # ──────────────────────────────────────────────────────────
@@ -122,7 +127,8 @@ class UnmixCLIP(nn.Module):
 
         # ④ soft-weighted sum (DualCoOp 방식)
         W = F.softmax(O, dim=-1)           # [B, 2N, 49]
-        logits = 5* (W * O).sum(-1)       # [B, 2N]  # 5 * 
+        # W = F.softmax(O - O.mean(-1,keepdim=True), dim=-1)  # 0527 수정한 부분
+        logits = 3 * (W * O).sum(-1)       # [B, 2N]  # 5 * 
 
         # ⑤ 양/음 분리 (dual prompt)
         B, _2N = logits.size()

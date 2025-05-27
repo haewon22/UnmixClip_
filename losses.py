@@ -2,9 +2,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# ─────────────────────────────────────────────────────────────
-# MFILoss : 변경 없음
-# ─────────────────────────────────────────────────────────────
 class MFILoss(nn.Module):
     def __init__(self, lambda_=0.2):
         super().__init__()
@@ -22,11 +19,7 @@ class MFILoss(nn.Module):
         return collapse + self.lambda_ * off_diag
 
 
-# ─────────────────────────────────────────────────────────────
-# Asymmetric Loss  –  **sigmoid 버전** (Ridnik et al. 2021)
-#   • 입력: logits [B, N], targets [B, N]  (0/1, float·tensor)
-# ─────────────────────────────────────────────────────────────
-class AsymmetricLoss(nn.Module):               # ★ 새 구현
+class AsymmetricLoss(nn.Module):               
     def __init__(
         self,
         gamma_neg: float = 4.0,
@@ -53,7 +46,6 @@ class AsymmetricLoss(nn.Module):               # ★ 새 구현
         xs_pos  = torch.sigmoid(logits)
         xs_neg  = 1.0 - xs_pos
 
-        # asymmetric clipping (neg쪽만 살짝 올려 p≈0 방지)
         if self.clip is not None and self.clip > 0:
             xs_neg = (xs_neg + self.clip).clamp(max=1)
 

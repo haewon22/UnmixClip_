@@ -58,21 +58,20 @@ def calc_map(pred: np.ndarray, target: np.ndarray) -> float:
 def validate(model: UnmixCLIP, loader: DataLoader, text_tokens: torch.Tensor,
              asl_loss_fn: AsymmetricLoss, mfi_loss_fn : MFILoss, device: torch.device):
     model.eval()
-    tot_loss, asl_loss_val, mfi_loss_val, preds, gts = 0.0, 0.0, 0.0, [], [] # asl_loss, mfi_loss 변수명 변경
+    tot_loss, asl_loss_val, mfi_loss_val, preds, gts = 0.0, 0.0, 0.0, [], [] 
 
     for imgs, labels in loader:
         imgs, labels = imgs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
         
-        # txt_proj_val 추가로 반환 받음
         lp, _,  txt_proj_val = model(imgs, text_tokens)
         asl = asl_loss_fn(lp, labels)
 
-        mfi = mfi_loss_fn(txt_proj_val) # MFI Loss에 txt_proj_val 전달
+        mfi = mfi_loss_fn(txt_proj_val) 
         
         loss = asl + mfi
         tot_loss += loss.item()
-        mfi_loss_val += mfi.item() # .item() 추가
-        asl_loss_val += asl.item() # .item() 추가
+        mfi_loss_val += mfi.item() 
+        asl_loss_val += asl.item() 
         
         preds.append(torch.sigmoid(lp).cpu().detach().numpy())
         gts.append(labels.cpu().numpy())
@@ -164,8 +163,6 @@ def main(cfg):
     asl_loss = AsymmetricLoss().to(device)
     mfi_loss = MFILoss(lambda_=0.2).to(device)
 
-    
-
     # only projectors are optimized
     optim_params = list(model.image_projector.parameters()) + list(model.text_projector.parameters())
     optimizer  = optim.SGD(optim_params, lr=cfg.lr, momentum=0.9, weight_decay=1e-4)
@@ -193,15 +190,6 @@ def main(cfg):
             labels = labels.to(device, non_blocking=True)
 
             lp, ln, txt_proj = model(imgs, text_tokens)
-
-            # ASL Loss 계산 방식 수정:
-            # lp는 긍정 로짓, ln은 부정 로짓으로 간주하고,
-            # labels (긍정 타겟) 및 1-labels (부정 타겟)에 대해 각각 계산
-            # 이 방식은 DualCoOp 논문의 Loss 구현 방식을 명확히 파악하여 적용하는 것이 가장 정확합니다.
-            # 여기서는 일반적인 다중 레이블 학습의 관점에서 제안되었습니다.
-            # train.py 학습 루프 내
-        
-
             asl  = asl_loss(lp, labels)          # [B, N] × [B, N]
             mfi  = mfi_loss(txt_proj)
             loss = asl + cfg.alpha * mfi
