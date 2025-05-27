@@ -23,9 +23,25 @@ class MLPProjector(nn.Module):
 # ──────────────────────────────────────────────────────────────
 # 2) 이미지용: LinearProjector (512 → 256)
 # ──────────────────────────────────────────────────────────────
-class LinearProjector(nn.Linear):
-    def __init__(self, input_dim=512, output_dim=256):
-        super().__init__(input_dim, output_dim, bias=False)
+# class LinearProjector(nn.Linear):
+#     def __init__(self, input_dim=512, output_dim=256):
+#         super().__init__(input_dim, output_dim, bias=False)
+class LinearProjector(nn.Module):
+    def __init__(self, input_dim=512, hidden_dim=384, output_dim=256):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim, bias=False),
+            nn.BatchNorm1d(hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.Linear(hidden_dim, output_dim, bias=False)
+        )
+
+    def forward(self, x):
+        B, P, D = x.shape            # [B, 49, 512]
+        x = self.net(x.view(-1, D))
+        return x.view(B, P, -1)
+        
+
 
 
 # ──────────────────────────────────────────────────────────────
@@ -38,9 +54,8 @@ class UnmixCLIP(nn.Module):
         self.clip_text = clip_model.encode_text    # Text Encoder
         self.image_projector = image_projector     # Linear: 512→256
         self.text_projector = text_projector       # MLP:    512→384→256
-
         self.patch_proj_w = clip_model.visual.attnpool.c_proj.weight  # [512, 2048]
-        self.patch_proj_w.requires_grad_(False)                       # freeze
+        self.patch_proj_w.requires_grad_(False)   
 
         for p in self.clip.parameters():
             p.requires_grad = False
@@ -72,7 +87,6 @@ class UnmixCLIP(nn.Module):
         x = x.flatten(2).transpose(1, 2)  # (B, 196, 2048)
 
         x = x @ self.patch_proj_w.T        # or F.linear(x, self.patch_proj_w)
-        # print("👉", x.shape)  # torch.Size([16, 196, 512])
 
         return x
 
@@ -108,7 +122,7 @@ class UnmixCLIP(nn.Module):
 
         # ④ soft-weighted sum (DualCoOp 방식)
         W = F.softmax(O, dim=-1)           # [B, 2N, 49]
-        logits = 5 * (W * O).sum(-1)       # [B, 2N]
+        logits = 5* (W * O).sum(-1)       # [B, 2N]  # 5 * 
 
         # ⑤ 양/음 분리 (dual prompt)
         B, _2N = logits.size()

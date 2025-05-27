@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # ─────────────────────────────────────────────────────────────
-# MFILoss : 배치 차원 없이 (2N, D) 입력
+# MFILoss : 변경 없음
 # ─────────────────────────────────────────────────────────────
 class MFILoss(nn.Module):
     def __init__(self, lambda_=0.2):
@@ -11,45 +11,61 @@ class MFILoss(nn.Module):
         self.lambda_ = lambda_
 
     def forward(self, t_prime):          # t_prime : (2N, D) or (N,D)
-        t_norm = F.normalize(t_prime, dim=-1)         # (2N,D)
-        S = t_norm @ t_norm.t()                       # (2N,2N)
+        vocab = t_prime.shape[0]          # 2N
+        t_norm = t_prime[:vocab // 2, :]  # 양(positive) 텍스트만 사용
+        S = t_norm @ t_norm.t()           # (N, N)
 
         diag = torch.diagonal(S)
-        collapse = (diag - 1).pow(2).sum()            # Σ(S_ii−1)²
-        off_diag = (S.pow(2).sum() - (diag.pow(2)).sum())
+        collapse = (diag - 1).pow(2).sum()
+        off_diag = (S.pow(2).sum() - diag.pow(2).sum())
 
         return collapse + self.lambda_ * off_diag
 
 
 # ─────────────────────────────────────────────────────────────
-# AsymmetricLoss - DualCoOp 스타일 (reduction='mean') 
+# Asymmetric Loss  –  **sigmoid 버전** (Ridnik et al. 2021)
+#   • 입력: logits [B, N], targets [B, N]  (0/1, float·tensor)
 # ─────────────────────────────────────────────────────────────
-class AsymmetricLoss(nn.Module):
-    def __init__(self, gamma_neg=2.0, gamma_pos=1.0, clip=0.05, eps=1e-8):
+class AsymmetricLoss(nn.Module):               # ★ 새 구현
+    def __init__(
+        self,
+        gamma_neg: float = 4.0,
+        gamma_pos: float = 1.0,
+        clip: float | None = 0.05,
+        eps: float = 1e-8,
+    ):
         super().__init__()
-        self.g_neg, self.g_pos, self.clip, self.eps = gamma_neg, gamma_pos, clip, eps
+        self.gamma_neg = gamma_neg
+        self.gamma_pos = gamma_pos
+        self.clip = clip
+        self.eps = eps
 
-    def forward(self, logit_pos, logit_neg, target):
+    @staticmethod
+    def _reduce(loss, reduction: str = "mean"):
+        return loss.mean() if reduction == "mean" else loss.sum()
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         """
-        logit_pos / logit_neg : [B, N]   (output from model)
-        target                : [B, N]   (0/1)
+        logits  : [B, N]  (raw scores: 긍정 로짓)
+        targets : [B, N]  (0/1 float)
         """
-        # 확률
-        p_pos = torch.sigmoid(logit_pos)          # + 프롬프트
-        p_neg = torch.sigmoid(logit_neg)          # − 프롬프트
+        targets = targets.float()
+        xs_pos  = torch.sigmoid(logits)
+        xs_neg  = 1.0 - xs_pos
 
-        # asymmetric clipping (δ=0.05)
-        if self.clip > 0:
-            p_neg = (p_neg + self.clip).clamp(max=1)
+        # asymmetric clipping (neg쪽만 살짝 올려 p≈0 방지)
+        if self.clip is not None and self.clip > 0:
+            xs_neg = (xs_neg + self.clip).clamp(max=1)
 
-        # CE
-        loss_pos = target * torch.log(p_pos.clamp(min=self.eps))
-        loss_neg = (1 - target) * torch.log(p_neg.clamp(min=self.eps))
-        loss = loss_pos + loss_neg
+        # 기본 BCE
+        los_pos = targets * torch.log(xs_pos.clamp(min=self.eps))
+        los_neg = (1 - targets) * torch.log(xs_neg.clamp(min=self.eps))
+        loss = los_pos + los_neg
 
-        # focusing
-        pt = p_pos * target + p_neg * (1 - target)
-        gamma = self.g_pos * target + self.g_neg * (1 - target)
-        loss *= (1 - pt).pow(gamma)
+        # focal modulation
+        if self.gamma_neg > 0 or self.gamma_pos > 0:
+            pt    = xs_pos * targets + xs_neg * (1 - targets)
+            gamma = self.gamma_pos * targets + self.gamma_neg * (1 - targets)
+            loss *= (1 - pt).pow(gamma)
 
-        return -loss.mean()   # batch mean
+        return -self._reduce(loss, reduction="mean")

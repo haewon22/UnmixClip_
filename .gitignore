@@ -2,5 +2,9 @@
 /wandb
 /clip_weights
 /mytest.ipynb
+/runs
+/VOCdataset
+/demo.jpg
+/visualization.ipynb
 __pycache__/
 .DS_Store

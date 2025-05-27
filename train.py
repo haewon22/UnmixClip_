@@ -16,7 +16,7 @@ import clip  # openai/CLIP
 
 from model   import UnmixCLIP, MLPProjector, LinearProjector
 from losses  import MFILoss, AsymmetricLoss
-from Dataset import Coco14Dataset
+from Dataset import VOC2007Dataset         
 from Cutout  import Cutout
 
 import wandb
@@ -56,24 +56,32 @@ def calc_map(pred: np.ndarray, target: np.ndarray) -> float:
 # ─────────────────────────────────────────────────────────────
 @torch.no_grad()
 def validate(model: UnmixCLIP, loader: DataLoader, text_tokens: torch.Tensor,
-             asl_loss_fn: AsymmetricLoss, device: torch.device):
+             asl_loss_fn: AsymmetricLoss, mfi_loss_fn : MFILoss, device: torch.device):
     model.eval()
-    tot_loss, preds, gts = 0.0, [], []
+    tot_loss, asl_loss_val, mfi_loss_val, preds, gts = 0.0, 0.0, 0.0, [], [] # asl_loss, mfi_loss 변수명 변경
 
     for imgs, labels in loader:
         imgs, labels = imgs.to(device, non_blocking=True), labels.to(device, non_blocking=True)
-        lp, ln, _ = model(imgs, text_tokens)
-        loss = asl_loss_fn(lp, ln, labels)
-        tot_loss += loss.item()
+        
+        # txt_proj_val 추가로 반환 받음
+        lp, _,  txt_proj_val = model(imgs, text_tokens)
+        asl = asl_loss_fn(lp, labels)
 
-        preds.append(torch.sigmoid(lp).cpu().numpy())
+        mfi = mfi_loss_fn(txt_proj_val) # MFI Loss에 txt_proj_val 전달
+        
+        loss = asl + mfi
+        tot_loss += loss.item()
+        mfi_loss_val += mfi.item() # .item() 추가
+        asl_loss_val += asl.item() # .item() 추가
+        
+        preds.append(torch.sigmoid(lp).cpu().detach().numpy())
         gts.append(labels.cpu().numpy())
 
     preds = np.concatenate(preds, axis=0)
     gts   = np.concatenate(gts,   axis=0)
     val_map = calc_map(preds, gts)
 
-    return tot_loss / len(loader), val_map
+    return tot_loss / len(loader), asl_loss_val/len(loader), mfi_loss_val/len(loader), val_map # 반환값 변경
 
 # ─────────────────────────────────────────────────────────────
 # Dual Prompt 작성
@@ -103,13 +111,16 @@ def main(cfg):
         "mps"  if torch.backends.mps.is_available() else
         "cpu"
     )
-    logging.info(f"device = {device}")
+    # print("💻 device: %s"%device)
+    logging.info(f"💻 device = {device}")
 
     # WandB ----------------------------------------------------
     wandb.init(project="unmix-clip", name=cfg.run_name, config=vars(cfg), resume="allow")
 
     # 1) CLIP RN‑101 backbone ---------------------------------
     clip_model, _ = clip.load("RN101", device=device, download_root=cfg.clip_root)
+    if device == "mps":
+        clip_model = clip_model.float()
 
     # freeze ALL CLIP parameters (visual + text)
     for p in clip_model.parameters():
@@ -130,9 +141,9 @@ def main(cfg):
         transforms.Normalize(CLIP_MEAN, CLIP_STD),
     ])
 
-    train_set = Coco14Dataset(os.path.join(cfg.data_root, "train2014"), cfg.train_ann, train_tf)
-    val_set   = Coco14Dataset(os.path.join(cfg.data_root, "val2014"),   cfg.val_ann,   val_tf)
-
+    voc_root = os.path.join(cfg.data_root, "VOC2007")
+    train_set = VOC2007Dataset(voc_root, image_set=cfg.train_split, transform=train_tf)
+    val_set   = VOC2007Dataset(voc_root, image_set=cfg.val_split,   transform=val_tf)
 
     train_loader = DataLoader(
         train_set, batch_size=cfg.batch, shuffle=True,
@@ -153,6 +164,8 @@ def main(cfg):
     asl_loss = AsymmetricLoss().to(device)
     mfi_loss = MFILoss(lambda_=0.2).to(device)
 
+    
+
     # only projectors are optimized
     optim_params = list(model.image_projector.parameters()) + list(model.text_projector.parameters())
     optimizer  = optim.SGD(optim_params, lr=cfg.lr, momentum=0.9, weight_decay=1e-4)
@@ -163,7 +176,7 @@ def main(cfg):
     if os.path.exists(cfg.prompts):
         with open(cfg.prompts, "r", encoding="utf-8") as f:
             custom_prompts = json.load(f)
-    dual_prompts = build_dual_prompts(train_set.classes, custom_prompts)
+    dual_prompts = build_dual_prompts(train_set.CLASSES, custom_prompts)
     text_tokens  = clip.tokenize(dual_prompts).to(device)
 
     # 5) Training loop ----------------------------------------
@@ -180,7 +193,18 @@ def main(cfg):
             labels = labels.to(device, non_blocking=True)
 
             lp, ln, txt_proj = model(imgs, text_tokens)
-            loss = asl_loss(lp, ln, labels) + cfg.alpha * mfi_loss(txt_proj)
+
+            # ASL Loss 계산 방식 수정:
+            # lp는 긍정 로짓, ln은 부정 로짓으로 간주하고,
+            # labels (긍정 타겟) 및 1-labels (부정 타겟)에 대해 각각 계산
+            # 이 방식은 DualCoOp 논문의 Loss 구현 방식을 명확히 파악하여 적용하는 것이 가장 정확합니다.
+            # 여기서는 일반적인 다중 레이블 학습의 관점에서 제안되었습니다.
+            # train.py 학습 루프 내
+        
+
+            asl  = asl_loss(lp, labels)          # [B, N] × [B, N]
+            mfi  = mfi_loss(txt_proj)
+            loss = asl + cfg.alpha * mfi
 
             optimizer.zero_grad()
             loss.backward()
@@ -190,7 +214,7 @@ def main(cfg):
             global_step  += 1
 
             if global_step % cfg.log_int == 0:
-                wandb.log({"step_loss": loss.item(), "lr": scheduler.get_last_lr()[0]}, step=global_step)
+                wandb.log({"step_loss": loss.item(), "lr": scheduler.get_last_lr()[0], 'step_asl_loss': asl.item(), 'step_mfi_loss': mfi.item()}, step=global_step)
 
         scheduler.step()
         avg_loss = running_loss / len(train_loader)
@@ -199,9 +223,9 @@ def main(cfg):
 
         # ----- Validation ------------------------------------
         if epoch % cfg.eval_freq == 0 or epoch == cfg.epochs:
-            val_loss, val_map = validate(model, val_loader, text_tokens, asl_loss, device)
+            val_loss, val_asl, val_mfi, val_map = validate(model, val_loader, text_tokens, asl_loss, mfi_loss, device)
             logging.info(f"  val_loss = {val_loss:.4f} | mAP = {val_map * 100:.2f}")
-            wandb.log({"val_loss": val_loss, "mAP": val_map}, step=global_step)
+            wandb.log({"val_loss": val_loss, "val_asl" : val_asl, "val_mfi" : val_mfi,"mAP": val_map}, step=global_step)
 
             # checkpoint --------------------------------------
             ckpt = {
@@ -238,38 +262,27 @@ def main(cfg):
 
 def get_cfg():
     p = argparse.ArgumentParser()
-    p.add_argument("--data_root",  default="data/coco2014")
-    p.add_argument("--train_ann",  default="data/annotations/instances_train2014.json")
-    p.add_argument("--val_ann",    default="data/annotations/instances_val2014.json")
-    p.add_argument("--prompts",    default="prompts.json", help="custom prompt json (optional)")
-    p.add_argument("--clip_root",  default="clip_weights")
-    p.add_argument("--out",        default="runs")
-    p.add_argument("--run_name",   default="unmix‑clip‑448")
+    p.add_argument("--data_root",   default="./VOCdataset/VOCdevkit/", help="Path to VOCdevkit directory (contains VOC2007)")
+    p.add_argument("--train_split", default="trainval",   choices=["train", "val", "trainval", "test"], help="split name for training")
+    p.add_argument("--val_split",   default="val",        choices=["train", "val", "trainval", "test"], help="split name for validation")
+    p.add_argument("--prompts",     default="prompts.json", help="custom prompt json (optional)")
+    p.add_argument("--clip_root",   default="clip_weights")
+    p.add_argument("--out",         default="runs")
+    p.add_argument("--run_name",    default="unmix‑clip")
 
     # training hyper‑params ----------------------------------
-    p.add_argument("--batch",   type=int,   default=16) 
-    p.add_argument("--workers", type=int,   default=4)
-    p.add_argument("--epochs",  type=int,   default=50)
-    p.add_argument("--lr",      type=float, default=0.002)
-    p.add_argument("--alpha",   type=float, default=7e-5, help="weight for MFI loss")
-    p.add_argument("--img_size",type=int,   default=448,  help="square resize dimension")
+    p.add_argument("--batch",    type=int,   default=32)
+    p.add_argument("--workers",  type=int,   default=15)
+    p.add_argument("--epochs",   type=int,   default=50)
+    p.add_argument("--lr",       type=float, default=0.002)
+    p.add_argument("--alpha",    type=float, default=7e-5, help="weight for MFI loss")
+    p.add_argument("--img_size", type=int,   default=448,  help="square resize dimension")
     p.add_argument("--eval_freq",type=int,   default=5)
     p.add_argument("--log_int",  type=int,   default=100,  help="steps between WandB logs")
+    p.add_argument("--use_all_info", type=int, default=0, help="use all information in the dataset")
 
     return p.parse_args()
 
 if __name__ == "__main__":
     cfg = get_cfg()
     main(cfg)
-
-"""
-터미널 프롬프트 예시
----------
-python train.py \
-  --data_root data/ \
-  --train_ann data/annotations/instances_train2014.json \
-  --val_ann   data/annotations/instances_val2014.json \
-  --out runs/unmix_clip \
-  --batch 100 --log_int 50 \
-  --epochs 100
-"""
