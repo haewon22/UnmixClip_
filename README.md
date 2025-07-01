@@ -1,1 +1,1 @@
-# implementation of UNMIX(DCLIP) CLIP
+# implementation of UNMIXCLIP(DCLIP)
