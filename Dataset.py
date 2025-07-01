@@ -68,7 +68,7 @@ class Coco14Dataset(Dataset):
         self.classes = [cat['name'] for cat in cats]
         
     def __len__(self):
-        return len(self.ids)  # 80
+        return len(self.ids) 
     
     def __getitem__(self, index):
         img_id = self.ids[index]

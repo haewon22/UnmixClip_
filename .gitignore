@@ -6,5 +6,7 @@
 /VOCdataset
 /demo.jpg
 /visualization.ipynb
+/demo.jpg
+/datasets
 __pycache__/
 .DS_Store
