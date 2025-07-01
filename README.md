@@ -1,1 +1,1 @@
-# Unofficial implementation of UNMIX CLIP - fixed version.
+# implementation of UNMIX(DCLIP) CLIP
